@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>View Job</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <a href="/dashboard">Back</a>
+    <h2>{{ viaje.destino }}</h2>
+    <p><strong>Planned By:</strong> {{ viaje.planificador }}</p>
+    <p><strong>Description:</strong> {{ viaje.descripcion }}</p>
+    <p><strong>Travel Start Date:</strong> {{ viaje.fecha_inicio.strftime('%B %d %Y') }}</p>
+    <p><strong>Travel End Date:</strong> {{ viaje.fecha_fin.strftime('%B %d %Y') }}</p>
+    <h4>Other Users Joining the Trip:</h4>
+    <ul>
+        {% for usuario in usuarios %}
+            <li>{{ usuario['nombre'] }} {{ usuario['apellido'] }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Add a Job</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <a href="/dashboard">Back</a>
+    <h2>Add a Job</h2>
+    {% with messages = get_flashed_messages(category_filter=["viaje"]) %}
+      {% if messages %}
+        <ul class="flash-messages">
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    <form action="/viaje/nuevo" method="POST" class="add-trip-form">
+        <label>Destination</label>
+        <input type="text" name="destino">
+        <label>Description</label>
+        <input type="text" name="descripcion">
+        <label>Travel Start Date</label>
+        <input type="date" name="fecha_inicio">
+        <label>Travel End Date</label>
+        <input type="date" name="fecha_fin">
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>
