@@ -1,6 +1,9 @@
 from flask import Flask, render_template
 from base.controllers import usuarios, citas
 from datetime import datetime
+from base.controllers import viaje_controller
+
+
 
 def format_date(value, format='%Y-%m-%d'):
     if isinstance(value, str):

@@ -1,171 +1,61 @@
-from base.config.mysqlconection import connectToMySQL
-from flask import flash, session
+from flask import Blueprint, render_template, redirect, request, session, flash, url_for
+from base.models.viaje_model import Viaje
 
+bp = Blueprint('viajes', __name__)
 
-class Cita:
-    @classmethod
-    def obtener_citas_usuario(cls, usuario_id):
-        """
-        Obtiene todas las citas creadas por un usuario específico.
-        """
-        query = "SELECT * FROM citas WHERE autor_id = %(usuario_id)s;"
-        data = {'usuario_id': usuario_id}
-        resultados = connectToMySQL(cls.db).query_db(query, data)
-        citas = []
-        for row in resultados:
-            citas.append(cls(row))
-        return citas
-    """
-    Clase que representa una cita y sus operaciones en la base de datos.
-    """
-    db = "proyecto_crud"
+@bp.route('/dashboard')
+def dashboard():
+    if 'usuario_id' not in session:
+        return redirect('/')
+    viajes_usuario = Viaje.viajes_usuario(session['usuario_id'])
+    viajes_otros = Viaje.viajes_otros(session['usuario_id'])
+    return render_template('dashboard.html', viajes_usuario=viajes_usuario, viajes_otros=viajes_otros)
 
-    def __init__(self, data):
-        """
-        Constructor: inicializa los atributos de la cita.
-        """
-        self.id = data['id']
-        self.cita = data['cita']
-        self.autor_id = data['autor_id'] if 'autor_id' in data else None #
-        self.usuario_id = data['usuario_id'] if 'usuario_id' in data else None
-        self.creado_en = data['creado_en'] if 'creado_en' in data else None
-        self.actualizado_en = data['actualizado_en'] if 'actualizado_en' in data else None
+@bp.route('/viaje/<int:viaje_id>')
+def ver_viaje(viaje_id):
+    if 'usuario_id' not in session:
+        return redirect('/')
+    viaje = Viaje.obtener_por_id(viaje_id)
+    usuarios = Viaje.usuarios_unidos(viaje_id)
+    return render_template('ver_viaje.html', viaje=viaje, usuarios=usuarios)
 
-    @classmethod
-    def guardar_cita(cls, data):
-        """
-        Guarda una nueva cita en la base de datos.
-        """
-        query = "INSERT INTO citas (cita, autor_id) VALUES (%(cita)s, %(autor_id)s);"
-        resultado = connectToMySQL(cls.db).query_db(query, data)
-        return resultado
+@bp.route('/viaje/nuevo', methods=['GET', 'POST'])
+def agregar_viaje():
+    if 'usuario_id' not in session:
+        return redirect('/')
+    if request.method == 'POST':
+        data = {
+            'destino': request.form['destino'],
+            'descripcion': request.form['descripcion'],
+            'fecha_inicio': request.form['fecha_inicio'],
+            'fecha_fin': request.form['fecha_fin'],
+            'planificador_id': session['usuario_id']
+        }
+        if not Viaje.validar(data):
+            return redirect('/viaje/nuevo')
+        Viaje.crear(data)
+        return redirect('/dashboard')
+    return render_template('agregar_viaje.html')
 
+@bp.route('/viaje/unirse/<int:viaje_id>')
+def unirse_viaje(viaje_id):
+    if 'usuario_id' not in session:
+        return redirect('/')
+    Viaje.unirse(session['usuario_id'], viaje_id)
+    return redirect('/dashboard')
 
-    @classmethod
-    def obtener_por_id(cls, cita_id):
-        """
-        Busca una cita por su ID.
-        """
-        query = "SELECT * FROM citas WHERE id = %(id)s;"
-        data = {'id': cita_id}
-        resultado = connectToMySQL(cls.db).query_db(query, data)
-        if not resultado:
-            return None
-        return cls(resultado[0])
-    
-    @classmethod
-    def obtener_todas(cls):
-        """
-        Obtiene todas las citas de la base de datos.
-        """
-        query = "SELECT * FROM citas;"
-        resultados = connectToMySQL(cls.db).query_db(query)
-        citas = []
-        for row in resultados:
-            citas.append(cls(row))
-        return citas
-    
-    @classmethod
-    def actualizar_cita(cls, data):
-        """
-        Actualiza los datos de una cita existente.
-        """
-        query = "UPDATE citas SET cita = %(cita)s WHERE id = %(id)s;"
-        return connectToMySQL(cls.db).query_db(query, data)
+@bp.route('/viaje/cancelar/<int:viaje_id>')
+def cancelar_union(viaje_id):
+    if 'usuario_id' not in session:
+        return redirect('/')
+    Viaje.cancelar_union(session['usuario_id'], viaje_id)
+    return redirect('/dashboard')
 
-    @classmethod
-    def eliminar_cita(cls, cita_id):
-        """
-        Elimina una cita por su ID.
-        """
-        query = "DELETE FROM citas WHERE id = %(id)s;"
-        data = {'id': cita_id}
-        return connectToMySQL(cls.db).query_db(query, data)
-
-    @staticmethod
-    def validar_cita(cita):
-        """
-        Valida los datos del formulario de cita.
-        Devuelve True si todo es válido, False si hay errores (y los muestra con flash).
-        """
-        is_valid = True
-        if len(cita['cita']) < 5:
-            flash("La cita debe tener al menos 5 caracteres.", 'cita')
-            is_valid = False
-        return is_valid
-
-    @classmethod
-    def agregar_favorito(cls, data):
-        """
-        Agrega una cita a la lista de favoritos de un usuario.
-        """
-        query = "INSERT INTO favoritos (usuario_id, cita_id) VALUES (%(usuario_id)s, %(cita_id)s);"
-        return connectToMySQL(cls.db).query_db(query, data)
-
-    @classmethod
-    def quitar_favorito(cls, data):
-        """
-        Quita una cita de la lista de favoritos de un usuario.
-        """
-        query = "DELETE FROM favoritos WHERE usuario_id = %(usuario_id)s AND cita_id = %(cita_id)s;"
-        return connectToMySQL(cls.db).query_db(query, data)
-
-    @classmethod
-    def obtener_favoritos_usuario(cls, usuario_id):
-        """
-        Obtiene todas las citas favoritas de un usuario.
-        """
-        query = "SELECT citas.* FROM favoritos JOIN citas ON favoritos.cita_id = citas.id WHERE favoritos.usuario_id = %(usuario_id)s;"
-        data = {'usuario_id': usuario_id}
-        resultados = connectToMySQL(cls.db).query_db(query, data)
-        favoritos = []
-        for row in resultados:
-            favoritos.append(cls(row))
-        return favoritos
-
-    @classmethod
-    def remover_de_favoritos(cls, data):
-        query = "DELETE FROM favoritos WHERE usuario_id = %(usuario_id)s AND cita_id = %(cita_id)s;"
-        return connectToMySQL(cls.db).query_db(query, data)
-
-    @classmethod
-    def obtener_favoritos_de_usuario(cls, usuario_id):
-        query = """
-            SELECT citas.*, usuarios.nombre, usuarios.apellido
-            FROM favoritos
-            JOIN citas ON favoritos.cita_id = citas.id
-            JOIN usuarios ON citas.autor_id = usuarios.id
-            WHERE favoritos.usuario_id = %(id)s;
-        """
-        data = {'id': usuario_id}
-        resultados = connectToMySQL(cls.db).query_db(query, data)
-        if not resultados:
-            return []
-
-        citas = []
-        for row in resultados:
-            cita = cls(row)
-            cita.autor = f"{row['nombre']} {row['apellido']}"
-            citas.append(cita)
-        return citas
-
-    @classmethod
-    def obtener_citas_no_favoritas(cls, usuario_id):
-        query = """
-            SELECT citas.*, usuarios.nombre, usuarios.apellido
-            FROM citas
-            JOIN usuarios ON citas.autor_id = usuarios.id
-            LEFT JOIN favoritos ON citas.id = favoritos.cita_id AND favoritos.usuario_id = %(id)s
-            WHERE favoritos.cita_id IS NULL;
-        """
-        data = {'id': usuario_id}
-        resultados = connectToMySQL(cls.db).query_db(query, data)
-        if not resultados:
-            return []
-
-        citas = []
-        for row in resultados:
-            cita = cls(row)
-            cita.autor = f"{row['nombre']} {row['apellido']}"
-            citas.append(cita)
-        return citas
+@bp.route('/viaje/eliminar/<int:viaje_id>')
+def eliminar_viaje(viaje_id):
+    if 'usuario_id' not in session:
+        return redirect('/')
+    viaje = Viaje.obtener_por_id(viaje_id)
+    if viaje and viaje.planificador_id == session['usuario_id']:
+        Viaje.eliminar(viaje_id)
+    return redirect('/dashboard')
